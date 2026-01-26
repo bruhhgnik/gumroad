@@ -10,7 +10,21 @@ import { Layout, LayoutProps } from "./Layout";
 
 import placeholderImage from "$assets/images/placeholders/comic-stars.png";
 
-const WithoutContent = ({ confirmation_info, authenticity_token, ...props }: LayoutProps & EmailConfirmationProps) => (
+export type EmailConfirmationProps = {
+  authenticity_token?: string | undefined;
+  confirmation_info?:
+    | {
+        id: string;
+        destination: string | null;
+        display: string | null;
+        email: string | null;
+      }
+    | undefined;
+};
+
+export type WithoutContentProps = LayoutProps & EmailConfirmationProps;
+
+export const WithoutContent = ({ confirmation_info, authenticity_token, ...props }: WithoutContentProps) => (
   <Layout {...props}>
     {props.content_unavailability_reason_code === "inactive_membership" ? (
       props.purchase?.membership?.is_installment_plan ? (
@@ -117,17 +131,6 @@ const RentalExpired = () => (
   </Placeholder>
 );
 
-type EmailConfirmationProps = {
-  authenticity_token?: string | undefined;
-  confirmation_info?:
-    | {
-        id: string;
-        destination: string | null;
-        display: string | null;
-        email: string | null;
-      }
-    | undefined;
-};
 const EmailConfirmation = ({ confirmation_info, authenticity_token }: EmailConfirmationProps) => (
   <Placeholder>
     <h2>You've viewed this product a few times already</h2>

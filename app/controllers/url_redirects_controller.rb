@@ -3,6 +3,7 @@
 class UrlRedirectsController < ApplicationController
   include SignedUrlHelper
   include ProductsHelper
+  include InertiaRendering
   include PageMeta::Favicon
 
   before_action :fetch_url_redirect, except: %i[
@@ -17,8 +18,9 @@ class UrlRedirectsController < ApplicationController
                                              download_archive latest_media_locations download_product_files audio_durations
                                              save_last_content_page]
   before_action :hide_layouts, only: %i[
-    confirm_page membership_inactive_page expired rental_expired_page show download_page download_product_files stream smil hls_playlist download_subtitle_file read
+    membership_inactive_page expired rental_expired_page show download_page download_product_files stream smil hls_playlist download_subtitle_file read
   ]
+  layout "inertia", only: [:confirm_page]
   before_action :mark_rental_as_viewed, only: %i[smil hls_playlist]
   after_action :register_that_user_has_downloaded_product, only: %i[download_page show stream read]
   after_action -> { create_consumption_event!(ConsumptionEvent::EVENT_TYPE_READ) }, only: [:read]
@@ -162,7 +164,8 @@ class UrlRedirectsController < ApplicationController
         email: params[:email],
       },
     )
-    @react_component_props = UrlRedirectPresenter.new(url_redirect: @url_redirect, logged_in_user:).download_page_without_content_props(extra_props)
+    props = UrlRedirectPresenter.new(url_redirect: @url_redirect, logged_in_user:).download_page_without_content_props(extra_props)
+    render inertia: "UrlRedirects/ConfirmPage", props:
   end
 
   def expired

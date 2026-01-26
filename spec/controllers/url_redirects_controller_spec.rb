@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "inertia_rails/rspec"
 
 describe UrlRedirectsController do
   render_views
@@ -1307,7 +1308,7 @@ describe UrlRedirectsController do
     end
   end
 
-  describe "GET 'confirm_page'" do
+  describe "GET 'confirm_page'", inertia: true do
     before do
       @url_redirect = create(:url_redirect)
     end
@@ -1317,12 +1318,11 @@ describe UrlRedirectsController do
       expect(response.headers["X-Robots-Tag"]).to eq("noindex")
     end
 
-
     it "renders the confirm page correctly" do
       get :confirm_page, params: { id: @url_redirect.token }
       expect(response).to be_successful
-      expect(assigns(:hide_layouts)).to eq(true)
-      expect(assigns(:react_component_props)).to eq(UrlRedirectPresenter.new(url_redirect: @url_redirect, logged_in_user: nil).download_page_without_content_props(content_unavailability_reason_code: UrlRedirectPresenter::CONTENT_UNAVAILABILITY_REASON_CODES[:email_confirmation_required]).merge(
+      expect(inertia.component).to eq("UrlRedirects/ConfirmPage")
+      expect(inertia.props).to match(hash_including(
         is_mobile_app_web_view: false,
         content_unavailability_reason_code: UrlRedirectPresenter::CONTENT_UNAVAILABILITY_REASON_CODES[:email_confirmation_required],
         add_to_library_option: "none",
@@ -1331,7 +1331,7 @@ describe UrlRedirectsController do
           destination: nil,
           display: nil,
           email: nil,
-        }
+        },
       ))
     end
 
@@ -1341,10 +1341,10 @@ describe UrlRedirectsController do
     end
 
     context "when params[:destination] is set" do
-      it "assigns @destination with params[:destination]" do
+      it "sets destination in confirmation_info" do
         get :confirm_page, params: { id: @url_redirect.token, destination: "stream" }
 
-        expect(assigns(:react_component_props)[:confirmation_info][:destination]).to eq "stream"
+        expect(inertia.props[:confirmation_info][:destination]).to eq "stream"
       end
     end
 
@@ -1355,21 +1355,21 @@ describe UrlRedirectsController do
           create(:rich_content, entity: product, description: [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "Hello world" }] }])
         end
 
-        it "assigns @destination with 'download_page'" do
+        it "sets destination to 'download_page' in confirmation_info" do
           get :confirm_page, params: { id: @url_redirect.token }
 
-          expect(assigns(:react_component_props)[:confirmation_info][:destination]).to eq "download_page"
+          expect(inertia.props[:confirmation_info][:destination]).to eq "download_page"
         end
       end
 
-      it "assigns @destination with nil value for an installment" do
+      it "sets destination to nil for an installment" do
         installment = create(:installment)
         installment.product_files << create(:product_file)
         url_redirect = create(:installment_url_redirect, installment:)
 
         get :confirm_page, params: { id: url_redirect.token }
 
-        expect(assigns(:react_component_props)[:confirmation_info][:destination]).to be_nil
+        expect(inertia.props[:confirmation_info][:destination]).to be_nil
       end
     end
   end
