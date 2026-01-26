@@ -1,17 +1,15 @@
 import { usePage } from "@inertiajs/react";
 import * as React from "react";
 
-import { LoggedInUser, LoggedInUserProvider, parseLoggedInUser } from "$app/components/LoggedInUser";
 import { WithContent, WithContentProps } from "$app/components/server-components/DownloadPage/WithContent";
 
 type Props = WithContentProps & {
   smart_app_banner: { app_id: string; app_argument: string };
   dropbox_api_key: string | null;
-  logged_in_user: LoggedInUser | null;
 };
 
 const DownloadPage = () => {
-  const { smart_app_banner, dropbox_api_key, logged_in_user, ...props } = usePage<Props>().props;
+  const { smart_app_banner, dropbox_api_key, ...props } = usePage<Props>().props;
 
   React.useEffect(() => {
     // Add smart app banner meta tag
@@ -47,14 +45,12 @@ const DownloadPage = () => {
     <div className="flex h-screen flex-col">
       <main className="flex flex-1 flex-col overflow-y-auto">
         <div className="flex flex-1 flex-col">
-          <LoggedInUserProvider value={parseLoggedInUser(logged_in_user)}>
-            <WithContent {...props} />
-          </LoggedInUserProvider>
+          <WithContent {...props} />
         </div>
       </main>
     </div>
   );
 };
 
-DownloadPage.layout = (page: React.ReactNode) => page;
+DownloadPage.loggedInUserLayout = true;
 export default DownloadPage;
