@@ -89,11 +89,7 @@ export type License = {
   seats: number;
 };
 
-const WithContent = ({
-  content,
-  product_has_third_party_analytics,
-  ...props
-}: LayoutProps & {
+export type WithContentProps = LayoutProps & {
   content: {
     rich_content_pages: RichContentPage[] | null;
     last_content_page_id: string | null;
@@ -109,7 +105,13 @@ const WithContent = ({
     community_chat_url: string | null;
   };
   product_has_third_party_analytics: boolean | null;
-}) => {
+};
+
+export const WithContent = ({
+  content,
+  product_has_third_party_analytics,
+  ...props
+}: WithContentProps) => {
   const url = new URL(useOriginalLocation());
   const addThirdPartyAnalytics = useAddThirdPartyAnalytics();
   const [contentFiles, setContentFiles] = React.useState(
