@@ -73,6 +73,7 @@ class UrlRedirectsController < ApplicationController
   end
 
   def download_page
+    @body_class = "download-page responsive responsive-nav"
     set_favicon_meta_tags(@url_redirect.seller)
     set_meta_tag(title: @url_redirect.with_product_files.name == "Untitled" ? @url_redirect.referenced_link.name : @url_redirect.with_product_files.name)
     props = UrlRedirectPresenter.new(url_redirect: @url_redirect, logged_in_user:).download_page_with_content_props(common_props)

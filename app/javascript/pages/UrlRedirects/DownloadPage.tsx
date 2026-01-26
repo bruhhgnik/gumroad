@@ -44,11 +44,17 @@ const DownloadPage = () => {
   }, [dropbox_api_key]);
 
   return (
-    <LoggedInUserProvider value={parseLoggedInUser(logged_in_user)}>
-      <WithContent {...props} />
-    </LoggedInUserProvider>
+    <div className="flex h-screen flex-col">
+      <main className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex flex-1 flex-col">
+          <LoggedInUserProvider value={parseLoggedInUser(logged_in_user)}>
+            <WithContent {...props} />
+          </LoggedInUserProvider>
+        </div>
+      </main>
+    </div>
   );
 };
 
-DownloadPage.disableLayout = true;
+DownloadPage.layout = (page: React.ReactNode) => page;
 export default DownloadPage;
