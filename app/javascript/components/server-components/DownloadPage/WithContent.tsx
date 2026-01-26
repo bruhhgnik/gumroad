@@ -1,3 +1,4 @@
+import { router } from "@inertiajs/react";
 import * as React from "react";
 import { cast, createCast } from "ts-safe-cast";
 
@@ -5,7 +6,6 @@ import { getFolderArchiveDownloadUrl, getProductFileDownloadInfos, saveLastConte
 import { RichContent, RichContentPage } from "$app/parsers/richContent";
 import { assertDefined } from "$app/utils/assert";
 import FileUtils from "$app/utils/file";
-import { request } from "$app/utils/request";
 import { generatePageIcon } from "$app/utils/rich_content_page";
 import { register } from "$app/utils/serverComponentUtil";
 
@@ -105,11 +105,15 @@ export type WithContentProps = LayoutProps & {
     community_chat_url: string | null;
   };
   product_has_third_party_analytics: boolean | null;
+  audio_durations?: Record<string, FileItem["duration"]>;
+  latest_media_locations?: Record<string, FileItem["latest_media_location"]> | null;
 };
 
 export const WithContent = ({
   content,
   product_has_third_party_analytics,
+  audio_durations,
+  latest_media_locations,
   ...props
 }: WithContentProps) => {
   const url = new URL(useOriginalLocation());
@@ -124,47 +128,60 @@ export const WithContent = ({
           FileUtils.isAudioExtension(file.extension) && file.duration === null ? [file.id] : [],
         )
       : [];
-  const missingAudioDurationsFetchIntevalRef = React.useRef<ReturnType<typeof setInterval>>();
+
+  // Update content files when audio_durations prop changes from Inertia reload
   React.useEffect(() => {
-    const fetchMissingAudioDurations = async () => {
-      try {
-        if (unprocessedAudioIds.length === 0) {
-          clearInterval(missingAudioDurationsFetchIntevalRef.current);
-          return;
-        }
+    if (!audio_durations || Object.keys(audio_durations).length === 0) return;
+    setContentFiles((files) =>
+      files.map((file) => {
+        const duration = audio_durations[file.id];
+        return duration !== null && duration !== undefined ? { ...file, duration, content_length: duration } : file;
+      }),
+    );
+  }, [audio_durations]);
 
-        const response = await request({
-          url: Routes.url_redirect_audio_durations_path(props.token, {
-            params: { file_ids: unprocessedAudioIds.slice(0, MAX_AUDIO_IDS_PER_FETCH) },
-          }),
-          method: "GET",
-          accept: "json",
-        });
-        if (!response.ok) return;
-        const durations = cast<Record<string, FileItem["duration"]>>(await response.json());
-        if (Object.keys(durations).length === 0) return;
-        setContentFiles((files) =>
-          files.map((file) => {
-            const duration = durations[file.id];
-            return duration !== null && duration !== undefined ? { ...file, duration, content_length: duration } : file;
-          }),
-        );
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
-      }
-    };
+  // Poll for audio durations using Inertia partial reload
+  const missingAudioDurationsFetchIntervalRef = React.useRef<ReturnType<typeof setInterval>>();
+  React.useEffect(() => {
+    if (unprocessedAudioIds.length === 0) {
+      clearInterval(missingAudioDurationsFetchIntervalRef.current);
+      return;
+    }
 
-    missingAudioDurationsFetchIntevalRef.current = setInterval(() => {
-      void fetchMissingAudioDurations();
+    missingAudioDurationsFetchIntervalRef.current = setInterval(() => {
+      router.reload({
+        only: ["audio_durations"],
+        data: { file_ids: unprocessedAudioIds.slice(0, MAX_AUDIO_IDS_PER_FETCH) },
+      });
     }, MISSING_AUDIO_DURATIONS_FETCH_INTERVAL_IN_MS);
 
     return () => {
-      clearInterval(missingAudioDurationsFetchIntevalRef.current);
+      clearInterval(missingAudioDurationsFetchIntervalRef.current);
     };
   }, [unprocessedAudioIds.length]);
 
-  const isFetchingLatestMediaLocationsRef = React.useRef(false);
+  // Update content files when latest_media_locations prop changes from Inertia reload
+  React.useEffect(() => {
+    if (!latest_media_locations || Object.keys(latest_media_locations).length === 0) return;
+    setContentFiles((files) =>
+      files.map((file) => ({ ...file, latest_media_location: latest_media_locations[file.id] ?? null })),
+    );
+  }, [latest_media_locations]);
+
+  // Poll for latest media locations using Inertia partial reload
+  const latestMediaLocationsIntervalRef = React.useRef<ReturnType<typeof setInterval>>();
+  React.useEffect(() => {
+    if (content.rich_content_pages == null || contentFiles.length === 0) return;
+
+    latestMediaLocationsIntervalRef.current = setInterval(() => {
+      router.reload({ only: ["latest_media_locations"] });
+    }, LATEST_MEDIA_LOCATIONS_FETCH_INTERVAL_IN_MS);
+
+    return () => {
+      clearInterval(latestMediaLocationsIntervalRef.current);
+    };
+  }, [content.rich_content_pages, contentFiles.length]);
+
   useRunOnce(() => {
     if (url.searchParams.get("receipt") === "true" && props.purchase?.email) {
       showAlert(`Your purchase was successful! We sent a receipt to ${props.purchase.email}.`, "success");
@@ -177,36 +194,6 @@ export const WithContent = ({
           location: "receipt",
           purchaseId: props.purchase.id,
         });
-    }
-
-    const fetchLatestMediaLocations = async () => {
-      if (isFetchingLatestMediaLocationsRef.current) return;
-
-      isFetchingLatestMediaLocationsRef.current = true;
-      try {
-        const response = await request({
-          url: Routes.url_redirect_latest_media_locations_path(props.token),
-          method: "GET",
-          accept: "json",
-        });
-        if (!response.ok) return;
-        const latestMediaLocations = cast<Record<string, FileItem["latest_media_location"]>>(await response.json());
-        if (Object.keys(latestMediaLocations).length === 0) return;
-        setContentFiles((files) =>
-          files.map((file) => ({ ...file, latest_media_location: latestMediaLocations[file.id] ?? null })),
-        );
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
-      } finally {
-        isFetchingLatestMediaLocationsRef.current = false;
-      }
-    };
-
-    if (content.rich_content_pages != null && contentFiles.length > 0) {
-      setInterval(() => {
-        void fetchLatestMediaLocations();
-      }, LATEST_MEDIA_LOCATIONS_FETCH_INTERVAL_IN_MS);
     }
   });
   const isDesktop = useIsAboveBreakpoint("lg");

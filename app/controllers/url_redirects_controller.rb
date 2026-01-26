@@ -76,6 +76,8 @@ class UrlRedirectsController < ApplicationController
     props = UrlRedirectPresenter.new(url_redirect: @url_redirect, logged_in_user:).download_page_with_content_props(common_props)
     props[:smart_app_banner] = { app_id: IOS_APP_ID, app_argument: @url_redirect.download_page_url }
     props[:dropbox_api_key] = DROPBOX_PICKER_API_KEY
+    props[:audio_durations] = InertiaRails.optional { audio_durations_data }
+    props[:latest_media_locations] = InertiaRails.optional { latest_media_locations_data }
     trigger_files_lifecycle_events
     render inertia: "UrlRedirects/DownloadPage", props:
   end
@@ -292,6 +294,25 @@ class UrlRedirectsController < ApplicationController
     def trigger_files_lifecycle_events
       @url_redirect.update_transcoded_videos_last_accessed_at
       @url_redirect.enqueue_job_to_regenerate_deleted_transcoded_videos
+    end
+
+    def audio_durations_data
+      return {} if params[:file_ids].blank?
+
+      @url_redirect.alive_product_files.where(filegroup: "audio").by_external_ids(params[:file_ids]).each_with_object({}) do |product_file, hash|
+        hash[product_file.external_id] = product_file.content_length
+      end
+    end
+
+    def latest_media_locations_data
+      return nil if @url_redirect.purchase.nil? || @url_redirect.installment.present?
+
+      product_files = @url_redirect.alive_product_files.select(:id)
+      media_locations_by_file = MediaLocation.max_consumed_at_by_file(purchase_id: @url_redirect.purchase.id).index_by(&:product_file_id)
+
+      product_files.each_with_object({}) do |product_file, hash|
+        hash[product_file.external_id] = media_locations_by_file[product_file.id].as_json
+      end
     end
 
     def redirect_to_custom_domain_if_needed
