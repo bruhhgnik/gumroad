@@ -194,21 +194,6 @@ describe ProductPresenter do
     end
   end
 
-  describe "#default_product_props" do
-    let(:request) { ActionDispatch::TestRequest.create }
-    let(:pundit_user) { SellerContext.new(user: nil, seller: nil) }
-    let(:seller) { create(:user) }
-    let(:product) { create(:product, user: seller) }
-
-    it "returns product_page_props" do
-      presenter = described_class.new(product:, request:, pundit_user:)
-
-      expect(presenter.default_product_props(seller_custom_domain_url: nil)).to eq(
-        presenter.product_page_props(seller_custom_domain_url: nil)
-      )
-    end
-  end
-
   describe "#profile_product_props" do
     let(:request) { ActionDispatch::TestRequest.create }
     let(:pundit_user) { SellerContext.new(user: nil, seller: nil) }

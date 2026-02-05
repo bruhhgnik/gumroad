@@ -1,25 +1,19 @@
-import { usePage } from "@inertiajs/react";
 import * as React from "react";
-import { cast } from "ts-safe-cast";
+import { usePage } from "@inertiajs/react";
 
 import { PoweredByFooter } from "$app/components/PoweredByFooter";
-import { Layout, Props as ProductLayoutProps } from "$app/components/Product/Layout";
+import { Layout, Props } from "$app/components/Product/Layout";
 
-type ProductShowPageProps = {
-  product: ProductLayoutProps;
-};
-
-const ProductShowPage = () => {
-  const { product } = cast<ProductShowPageProps>(usePage().props);
+function ProductShowPage() {
+  const props = usePage<Props>().props;
 
   return (
     <>
-      <Layout {...product} />
+      <Layout {...props} />
       <PoweredByFooter />
     </>
   );
-};
+}
 
 ProductShowPage.loggedInUserLayout = true;
-
 export default ProductShowPage;

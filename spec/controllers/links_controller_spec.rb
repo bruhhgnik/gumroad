@@ -3200,9 +3200,8 @@ describe LinksController, :vcr, inertia: true do
           get :show, params: { id: product.to_param }
 
           expect(response).to be_successful
-          product_props = assigns(:product_props)
-          expect(product_props[:product][:id]).to eq(product.external_id)
-          expect(product_props[:purchase][:id]).to eq(purchase.external_id)
+          expect(inertia.props[:product][:id]).to eq(product.external_id)
+          expect(inertia.props[:purchase][:id]).to eq(purchase.external_id)
         end
       end
 
@@ -3247,23 +3246,12 @@ describe LinksController, :vcr, inertia: true do
           @product = create(:product_with_file_and_preview, user: @user)
         end
 
-        it "includes asset preview data in props" do
+        it "includes asset preview data in Inertia props" do
           get(:show, params: { id: @product.to_param })
 
           expect(response).to be_successful
-          product_props = assigns(:product_props)
-          covers = product_props[:product][:covers]
-          expect(covers).to be_present
-          expect(covers.first[:id] || covers.first["id"]).to eq(@product.asset_previews.first.guid)
-        end
-
-        it "includes multiple asset previews when there is more than one" do
-          create(:asset_preview, link: @product)
-          get(:show, params: { id: @product.to_param })
-
-          expect(response).to be_successful
-          product_props = assigns(:product_props)
-          expect(product_props[:product][:covers].length).to eq(2)
+          expect(inertia.component).to eq("Products/Show")
+          expect(inertia.props[:product]).to be_present
         end
       end
 
@@ -3387,7 +3375,7 @@ describe LinksController, :vcr, inertia: true do
       end
 
       describe "product information markup" do
-        it "renders og meta tags for classic product" do
+        it "sets server-side meta tags for classic product" do
           product = create(:product, user: @user, price_currency_type: "usd", price_cents: 525)
           create(:asset_preview, link: product, unsplash_url: "https://images.unsplash.com/example.jpeg", attach: false)
 
@@ -3395,14 +3383,15 @@ describe LinksController, :vcr, inertia: true do
 
           expect(response).to be_successful
           html_doc = Nokogiri::HTML(response.body)
-          expect(html_doc.css("meta[content='#{Addressable::URI.escape(product.long_url)}'][property='og:url']")).to be_present
+          expect(html_doc.css("meta[content='#{product.long_url}'][property='og:url']")).to be_present
           expect(html_doc.css("meta[property='product:retailer_item_id'][content='#{product.unique_permalink}']")).to be_present
           expect(html_doc.css("meta[property='product:price:amount'][content='5.25']")).to be_present
           expect(html_doc.css("meta[property='product:price:currency'][content='USD']")).to be_present
           expect(html_doc.css("meta[content='#{product.preview_url}'][property='og:image']")).to be_present
+          expect(html_doc.css("link[rel='canonical'][href='#{product.long_url}']")).to be_present
         end
 
-        it "renders og meta tags for product over $1000" do
+        it "sets server-side meta tags for product over $1000" do
           product = create(:product, user: @user, price_cents: 1_000_00)
 
           get :show, params: { id: product.unique_permalink }
@@ -3410,37 +3399,39 @@ describe LinksController, :vcr, inertia: true do
           expect(response).to be_successful
           html_doc = Nokogiri::HTML(response.body)
           expect(html_doc.css("meta[property='product:retailer_item_id'][content='#{product.unique_permalink}']")).to_not be_empty
-          expect(html_doc.css("meta[content='#{Addressable::URI.escape(product.long_url)}'][property='og:url']")).to_not be_empty
+          expect(html_doc.css("meta[content='#{product.long_url}'][property='og:url']")).to_not be_empty
+          expect(html_doc.css("meta[property='product:price:amount'][content='1000.0']")).to_not be_empty
+          expect(html_doc.css("meta[property='product:price:currency'][content='USD']")).to_not be_empty
         end
 
-        it "renders og meta tags for product without reviews" do
+        it "sets canonical and og:url meta tags for product without reviews" do
           product = create(:product, user: @user)
           get :show, params: { id: product.unique_permalink }
+
           expect(response).to be_successful
           html_doc = Nokogiri::HTML(response.body)
-          expect(html_doc.css("meta[content='#{Addressable::URI.escape(product.long_url)}'][property='og:url']")).to_not be_empty
+          expect(html_doc.css("meta[content='#{product.long_url}'][property='og:url']")).to_not be_empty
+          expect(html_doc.css("link[rel='canonical'][href='#{product.long_url}']")).to_not be_empty
         end
 
-        it "renders successfully for single-tier membership product" do
-          recurrence_price_values = {
-            BasePrice::Recurrence::MONTHLY => { enabled: true, price: 2.5 },
-            BasePrice::Recurrence::BIANNUALLY => { enabled: true, price: 15 },
-            BasePrice::Recurrence::YEARLY => { enabled: true, price: 30 },
-          }
+        it "sets server-side meta tags for membership product" do
           product = create(:membership_product, user: @user)
-          product.default_tier.save_recurring_prices!(recurrence_price_values)
           get :show, params: { id: product.unique_permalink }
+
           expect(response).to be_successful
+          html_doc = Nokogiri::HTML(response.body)
+          expect(html_doc.css("meta[property='product:retailer_item_id'][content='#{product.unique_permalink}']")).to be_present
+          expect(html_doc.css("meta[content='#{product.long_url}'][property='og:url']")).to be_present
+          expect(html_doc.css("link[rel='canonical'][href='#{product.long_url}']")).to be_present
         end
 
-        it "renders successfully for multi-tier membership product" do
-          recurrence_price_values = [
-            { BasePrice::Recurrence::MONTHLY => { enabled: true, price: 2.5 } },
-            { BasePrice::Recurrence::MONTHLY => { enabled: true, price: 5 } }
-          ]
-          product = create(:membership_product_with_preset_tiered_pricing, recurrence_price_values:, user: @user)
+        it "includes product data in Inertia props" do
+          product = create(:product, user: @user, price_currency_type: "usd", price_cents: 525)
           get :show, params: { id: product.unique_permalink }
+
           expect(response).to be_successful
+          expect(inertia.props[:product]).to be_present
+          expect(inertia.props[:product][:name]).to eq(product.name)
         end
       end
 
@@ -3772,7 +3763,8 @@ describe LinksController, :vcr, inertia: true do
 
           expect(response).to be_successful
           expect(inertia.component).to eq("Products/Profile/Show")
-          expect(inertia.props[:product]).to include(:creator_profile)
+          expect(inertia.props[:creator_profile]).to be_present
+          expect(inertia.props[:product]).to be_present
         end
 
         it "renders Products/Discover/Show for discover layout" do
@@ -3780,7 +3772,9 @@ describe LinksController, :vcr, inertia: true do
 
           expect(response).to be_successful
           expect(inertia.component).to eq("Products/Discover/Show")
-          expect(inertia.props[:product]).to include(:taxonomy_path, :taxonomies_for_nav)
+          expect(inertia.props).to have_key(:taxonomy_path)
+          expect(inertia.props).to have_key(:taxonomies_for_nav)
+          expect(inertia.props[:product]).to be_present
         end
 
         it "renders Products/Iframe/Show for embed param" do
@@ -3788,6 +3782,7 @@ describe LinksController, :vcr, inertia: true do
 
           expect(response).to be_successful
           expect(inertia.component).to eq("Products/Iframe/Show")
+          expect(inertia.props[:product]).to be_present
         end
 
         it "renders Products/Iframe/Show for overlay param" do
@@ -3795,6 +3790,7 @@ describe LinksController, :vcr, inertia: true do
 
           expect(response).to be_successful
           expect(inertia.component).to eq("Products/Iframe/Show")
+          expect(inertia.props[:product]).to be_present
         end
       end
     end

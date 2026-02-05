@@ -1,24 +1,24 @@
-import { usePage } from "@inertiajs/react";
 import * as React from "react";
-import { cast } from "ts-safe-cast";
+import { usePage } from "@inertiajs/react";
 
-import { Layout as ProductLayout, Props as ProductLayoutProps } from "$app/components/Product/Layout";
+import { CreatorProfile } from "$app/parsers/profile";
+
+import { Layout as ProductLayout, Props } from "$app/components/Product/Layout";
 import { Layout as ProfileLayout } from "$app/components/Profile/Layout";
 
-type ProfileProductShowPageProps = {
-  product: ProductLayoutProps;
+type PageProps = Props & {
+  creator_profile: CreatorProfile;
 };
 
-const ProfileProductShowPage = () => {
-  const { product } = cast<ProfileProductShowPageProps>(usePage().props);
+function ProfileProductShowPage() {
+  const props = usePage<PageProps>().props;
 
   return (
-    <ProfileLayout creatorProfile={product.creator_profile}>
-      <ProductLayout cart {...product} />
+    <ProfileLayout creatorProfile={props.creator_profile}>
+      <ProductLayout cart {...props} />
     </ProfileLayout>
   );
-};
+}
 
 ProfileProductShowPage.loggedInUserLayout = true;
-
 export default ProfileProductShowPage;

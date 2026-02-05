@@ -142,8 +142,8 @@ class LinksController < ApplicationController
                                   @product.user.merchant_account_currency(PaypalChargeProcessor.charge_processor_id) :
                                   ChargeProcessor::DEFAULT_CURRENCY_CODE
     @pay_with_card_enabled = @product.user.pay_with_card_enabled?
-    @presenter = ProductPresenter.new(pundit_user:, product: @product, request:)
-    @presenter_props = { recommended_by: params[:recommended_by], discount_code: params[:offer_code] || params[:code], quantity: (params[:quantity] || 1).to_i, layout: params[:layout], seller_custom_domain_url: }
+    presenter = ProductPresenter.new(pundit_user:, product: @product, request:)
+    presenter_props = { recommended_by: params[:recommended_by], discount_code: params[:offer_code] || params[:code], quantity: (params[:quantity] || 1).to_i, layout: params[:layout], seller_custom_domain_url: }
     @body_class = "iframe" if params[:overlay] || params[:embed]
 
     if ["search", "discover"].include?(params[:recommended_by])
@@ -157,7 +157,21 @@ class LinksController < ApplicationController
     set_noindex_header if !@product.alive?
 
     respond_to do |format|
-      format.html { render_product_inertia_page }
+      format.html do
+        case params[:layout]
+        when Product::Layout::PROFILE
+          render inertia: "Products/Profile/Show", props: presenter.profile_product_props(**presenter_props)
+        when Product::Layout::DISCOVER
+          discover_props = { taxonomy_path: @product.taxonomy&.ancestry_path&.join("/"), taxonomies_for_nav: }
+          render inertia: "Products/Discover/Show", props: presenter.discover_product_props(discover_props:, **presenter_props)
+        else
+          if params[:embed] || params[:overlay]
+            render inertia: "Products/Iframe/Show", props: presenter.iframe_product_props(**presenter_props)
+          else
+            render inertia: "Products/Show", props: presenter.product_page_props(**presenter_props)
+          end
+        end
+      end
       format.json { render json: @product.as_json }
       format.any { e404 }
     end
@@ -562,26 +576,6 @@ class LinksController < ApplicationController
       @body_id               = "product_page"
       @is_on_product_page    = true
       @debug                 = params[:debug] && !Rails.env.production?
-    end
-
-    def render_product_inertia_page
-      case params[:layout]
-      when Product::Layout::PROFILE
-        @product_props = { product: @presenter.profile_product_props(**@presenter_props) }
-        render inertia: "Products/Profile/Show", props: @product_props
-      when Product::Layout::DISCOVER
-        discover_props = { taxonomy_path: @product.taxonomy&.ancestry_path&.join("/"), taxonomies_for_nav: }
-        @product_props = { product: @presenter.discover_product_props(discover_props:, **@presenter_props) }
-        render inertia: "Products/Discover/Show", props: @product_props
-      else
-        if params[:embed] || params[:overlay]
-          @product_props = { product: @presenter.iframe_product_props(**@presenter_props) }
-          render inertia: "Products/Iframe/Show", props: @product_props
-        else
-          @product_props = { product: @presenter.default_product_props(**@presenter_props) }
-          render inertia: "Products/Show", props: @product_props
-        end
-      end
     end
 
     def link_params

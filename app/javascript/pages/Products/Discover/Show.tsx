@@ -1,30 +1,31 @@
-import { usePage } from "@inertiajs/react";
 import * as React from "react";
-import { cast } from "ts-safe-cast";
+import { usePage } from "@inertiajs/react";
 
 import { Taxonomy } from "$app/utils/discover";
 
 import { Layout as DiscoverLayout } from "$app/components/Discover/Layout";
-import { Layout, Props as ProductLayoutProps } from "$app/components/Product/Layout";
+import { Layout, Props } from "$app/components/Product/Layout";
 
-type DiscoverProductShowPageProps = {
-  product: ProductLayoutProps & { taxonomy_path: string | null; taxonomies_for_nav: Taxonomy[] };
+type PageProps = Props & {
+  taxonomy_path: string | null;
+  taxonomies_for_nav: Taxonomy[];
 };
 
-const DiscoverProductShowPage = () => {
-  const { product } = cast<DiscoverProductShowPageProps>(usePage().props);
+function DiscoverProductShowPage() {
+  const props = usePage<PageProps>().props;
 
   return (
     <DiscoverLayout
-      taxonomyPath={product.taxonomy_path ?? undefined}
-      taxonomiesForNav={product.taxonomies_for_nav}
+      taxonomyPath={props.taxonomy_path ?? undefined}
+      taxonomiesForNav={props.taxonomies_for_nav}
       forceDomain
     >
-      <Layout cart hasHero {...product} />
+      <Layout cart hasHero {...props} />
+      {/* Render an empty div for the add section button */}
+      {"products" in props ? <div /> : null}
     </DiscoverLayout>
   );
-};
+}
 
 DiscoverProductShowPage.loggedInUserLayout = true;
-
 export default DiscoverProductShowPage;

@@ -65,10 +65,6 @@ class ProductPresenter
     }
   end
 
-  def default_product_props(seller_custom_domain_url:, **kwargs)
-    product_page_props(seller_custom_domain_url:, **kwargs)
-  end
-
   def profile_product_props(seller_custom_domain_url:, **kwargs)
     product_page_props(seller_custom_domain_url:, **kwargs).merge(
       creator_profile: ProfilePresenter.new(pundit_user:, seller: product.user).creator_profile
