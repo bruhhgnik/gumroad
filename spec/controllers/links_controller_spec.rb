@@ -3435,6 +3435,24 @@ describe LinksController, :vcr, inertia: true do
         end
       end
 
+      it "includes custom styles in a style tag in the head" do
+        seller_profile = @user.seller_profile
+        seller_profile.update!(highlight_color: "#009a49", font: "Roboto Mono", background_color: "#000000")
+        product = create(:product, user: @user)
+
+        get :show, params: { id: product.unique_permalink }
+
+        expect(response).to be_successful
+        html_doc = Nokogiri::HTML(response.body)
+        style_tag = html_doc.at_css("head style")
+        expect(style_tag).to be_present
+        style_content = style_tag.inner_html
+        expect(style_content).to include("--accent: 0 154 73")
+        expect(style_content).to include("--filled: 0 0 0")
+        expect(style_content).to include("--body-bg: #000000")
+        expect(style_content).to include("Roboto Mono")
+      end
+
       it "does not set no index header by default" do
         product = create(:product, user: @user)
         get :show, params: { id: product.unique_permalink }
