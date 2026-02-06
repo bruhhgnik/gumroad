@@ -40,7 +40,6 @@ ReactOnRails.register({
   GenerateInvoiceConfirmationPage,
   GenerateInvoicePage,
   Nav,
-  PdfReaderPage,
   Pill,
   ProductEditPage,
   Profile,
